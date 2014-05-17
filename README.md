@@ -4,6 +4,7 @@ CSS-On-Diet - preprocessor support for Sublime Text
 This is the package for Sublime Text editor version 2 and 3 on Windows, Mac, Linux platforms.
 
 It includes:
+
 1.  Syntax highlighting for CSS-On-Diet - CSS preprocessor
 2.  Build system for that preprocessor
 3.  And the preprocessor itself!
