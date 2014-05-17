@@ -1,12 +1,12 @@
-CSS-On-Diet - easy and fast CSS preprocessor
-============================================
+CSS-On-Diet - preprocessor support for Sublime Text
+===================================================
 
 This is the package for Sublime Text editor version 2 and 3 on Windows, Mac, Linux platforms.
 
 It includes:
-1. Syntax highlighting for CSS-On-Diet - CSS preprocessor
-2. Build system for that preprocessor
-3. And the preprocessor itself!
+1.  Syntax highlighting for CSS-On-Diet - CSS preprocessor
+2.  Build system for that preprocessor
+3.  And the preprocessor itself!
 
 Because CSS-On-Diet preprocessor is included in this package, you don't have to install it to use it from inside Sublime Text. This is possible without installing any dependencies because CSS-On-Diet default implementation is in Python and executed by embedded Python interpreter from Sublime Text.
 
