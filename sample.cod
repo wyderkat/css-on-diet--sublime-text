@@ -1,0 +1,23 @@
+@cod-defines {
+  C_LOGO #430ca8 
+  C_Title #A80C9980
+  Cbackground #FFFFFF
+  BAR 100p
+  BackgroundImg url("img_tree.png")
+}
+
+body {
+  fos 12p
+}
+
+.element {
+  les 2p
+  //or just
+  letter-spacing: 2px;
+  /*  /* comment inside */ comment  */
+  col C_LOGO
+  ba- Cbackground BackgroundImg nr ri to;
+  dis bl
+  mal BAR+10
+}
+

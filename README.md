@@ -1,26 +1,40 @@
-CSS-On-Diet - preprocessor support for Sublime Text
-===================================================
+CSS-On-Diet - easy and fast CSS preprocessor
+============================================
 
-This is the package for Sublime Text editor version 2 and 3 on Windows, Mac, Linux platforms.
+This is [CSS-On-Diet](http://www.cofoh.com/css-on-diet) package for 
+Sublime Text v2 and v3 for Mac, Linux and Windows. 
+[CSS-On-Diet](http://www.cofoh.com/css-on-diet) is a preprocessor. It works
+like Emmet, but on the CSS level.  
 
-It includes:
+![screenshot](https://raw.github.com/wyderkat/css-on-diet--sublime-text/master/screenshot.png)
 
-1.  Syntax highlighting for CSS-On-Diet - CSS preprocessor
-2.  Build system for that preprocessor
-3.  And the preprocessor itself!
+![screenshot](screenshot.png)
 
-Because CSS-On-Diet preprocessor is included in this package, you don't have to install it to use it from inside Sublime Text. This is possible without installing any dependencies because CSS-On-Diet default implementation is in Python and executed by embedded Python interpreter from Sublime Text.
+This package includes:
 
+1.  Syntax highlighter
+2.  Build system
+3.  The preprocessor itself!
 
-CSS-On-Diet
-===========
+Installation
+============
+
+Package Manager
+---------------
+You can install via [Sublime Package Control](http://wbond.net/sublime_packages/package_control)
+
+Manual
+------
+Or you can clone [this repo](https://github.com/wyderkat/css-on-diet--sublime-text) into your *Sublime Text [2|3]/Packages* directory
+
+Preprocessor included
+---------------------
+Because CSS-On-Diet preprocessor is included in this package you don't have to install it separetly. But you can do it.
+
+CSS-On-Diet quick documentation
+===============================
 
 CSS-On-Diet is a preprocessor for CSS files. The key feature are mnemonics for frequently used properties and value names, which are similar to Emmet abbreviations. Other goodies include optional colons and semicolons, nested and one line comments, variables and mixins, calculator, hexadecimal RGBA.
-
-Much more information on [www.cofoh.com/css-on-diet](http://www.cofoh.com/css-on-diet)
-
-Features
-========
 
 Use old CSS
 -----------
@@ -50,7 +64,7 @@ Use mnemonics
       bac #1C6BA0
     }
 
-Common CSS keywords have mnemonics. Parameters are 3 letters long, values 2, and units just 1 letter ([List](http://www.cofoh.com/css-on-diet-1.1))
+Common CSS keywords have mnemonics. Parameters are 3 letters long, values 2, and units just 1 letter ([The list](http://www.cofoh.com/css-on-diet-1.1))
 
 One line comments
 -----------------
@@ -121,12 +135,4 @@ Mixins
     }
 
 Mixins are defines with arguments. Easy to use but powerful syntax.
-
-
-Installation from TGZ file
-==========================
-
-Unpack TGZ file and *cod* Python script is all you need. 
-
-Install Python (ver 2.7.x preferable) if you don't have it.
 
