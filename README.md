@@ -134,3 +134,4 @@ Mixins
 
 Mixins are defines with arguments. Easy to use but powerful syntax.
 
+More info at [CSS-On-Diet page](http://www.cofoh.com/css-on-diet)
