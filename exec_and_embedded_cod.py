@@ -7,6 +7,7 @@ import time
 import imp
 
 PACKAGeDIR = "CSS-On-Diet"
+# TODO    MY_PLUGIN = dirname(realpath(__file__))
 
 # "_COMMENT ON MS WINDOWS": "embedded COD works in Windows, but it excludes using external COD preprocessor. If shell is True, we cannot catch exception if external command is missing, and we cannot run embedded version then"
 
