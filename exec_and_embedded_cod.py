@@ -7,7 +7,6 @@ import time
 import imp
 
 PACKAGeDIR = "CSS-On-Diet"
-# TODO    MY_PLUGIN = dirname(realpath(__file__))
 
 # "_COMMENT ON MS WINDOWS": "embedded COD works in Windows, but it excludes using external COD preprocessor. If shell is True, we cannot catch exception if external command is missing, and we cannot run embedded version then"
 
@@ -53,19 +52,26 @@ class EmbeddedCODInThread(threading.Thread):
     me.args = an_argument( inputfile, output, minify )
 
     print("Actually running embedded COD script with inputfile=%s, " \
-        "output=%s, minify=%s\n" %( inputfile, output, str(minify)) )
-    script_dir = os.path.join( sublime.packages_path(), PACKAGeDIR )
-    #me.read_stderr("script_dir: %s\n" % script_dir )
-
+        "output=%s, minify=%s from %s package\n" % \
+          ( inputfile, output, str(minify), PACKAGeDIR) )
     me.start_time = time.time()
 
     try:
-      fp, pathname, description = imp.find_module("cod", [script_dir])
-      try:
-        me.cod_module = imp.load_module("cod", fp, pathname, description)
-      finally:
-        if fp:
-          fp.close()
+      if sublime.version()[0] == "2":
+        script_dir = os.path.join( sublime.packages_path(), PACKAGeDIR )
+        #me.read_stderr("script_dir: %s\n" % script_dir )
+
+        fp, pathname, description = imp.find_module("cod", [ script_dir ] )
+        try:
+          me.cod_module = imp.load_module("cod", fp, pathname, description)
+        finally:
+          if fp:
+            fp.close()
+
+      elif sublime.version()[0] == "3":
+        sublimemodule = __import__("CSS-On-Diet")
+        me.cod_module = sublimemodule.cod
+
     except ImportError:
       me.read_stderr("[Error loading embedded COD preprocessor]\n")
       me.finished = True
