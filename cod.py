@@ -5,7 +5,7 @@
 # Licensed under GPL-v3
 ##
 VERSION = "1.3"
-PROToVERSION = "1.2"
+PROToVERSION = "1.3"
 
 PROPERTyMNEMONICS = {
   "col":"color",
@@ -205,6 +205,7 @@ import sys
 from os import path
 import hashlib
 
+
 def error_handler( msg ):
   pass
 log_err = error_handler
@@ -310,7 +311,6 @@ class a_cut( object ):
             absolutregpos += cut[0]
 
           if afterremovefix:
-            # TODO change tuples to something modifiable
             cut = ( cut[0] + afterremovefix, cut[1] )
             afterremovefix = 0
 
@@ -324,7 +324,7 @@ class a_cut( object ):
                 try:
                   deleted = newcutreg.pop()
                 except IndexError:
-                  log_err ("COD internal error which never should happened")
+                  log_err ("COD internal error which never should happened\n")
                   sys.exit(44542)
                 again = False
               else:
@@ -387,7 +387,6 @@ class a_cut( object ):
     if stringorcut != []:
 
       (mergefilling, mergeabsolute) =  stringorcut.last_cut_dinstances()
-      # TODO can be on fly
       if tail:
         lastindex = None
       else:
@@ -475,17 +474,17 @@ def rm_comments( cut ):
     
   cut.cut_and_save( matchesidx )
 
-# TODO string support
+# TODO str supp
 DEFINEsBLOCkRE = re.compile( r"""
   @cod-defines?
   \s*
   {
   (.*?) # everything up to close
-  }
-                            """, re.X|re.S ) 
+  $\s* } \s*$    # has to be in separate line
+                            """, re.X|re.S|re.M ) 
 
 DEFINeNAMeCHAR = r"[-\w]"
-# TODO string support
+# TODO str supp
 DEFINEsRE = re.compile( r"""
   (?P<name>%s+)   # some freedom in naming
   [ \t\r\f\v]*       # not \n! can be empty when no body
@@ -495,7 +494,9 @@ DEFINEsRE = re.compile( r"""
 
 class a_defines(object):
   def __init__( me ):
+    # define names pattern inside @cod-define
     me.dictin = {}
+    # outside - in real document
     me.dictout = {}
   def add_def( me, name, body ):
     pat1 = r"(?<!%s)" % DEFINeNAMeCHAR
@@ -533,20 +534,21 @@ def read_defines( cut ):
   cut.replace_preserving( to_replace )
   return defines
 
-# TODO strings support
+# TODO str supp
 DEFINeARGUMENT = re.compile( r"_ARG(\d+)_" )
 
 def expand_defines( defines, cutorstr ):
   if type( cutorstr ) == type( "" ):
-    cut = False
+    outside = False
   else:
-    cut = True
+    outside = True
   
-  for defbody,defpat in defines.get_all( cut ):
+  for defbody,defpat in defines.get_all( outside ):
 
     defcandidate = re.finditer( defpat, str(cutorstr) )
     tocutit = []
     for d in defcandidate:
+      newbody = defbody
       # find arguments 
       argumentsstring = d.group(1)
       arguments = []
@@ -556,27 +558,27 @@ def expand_defines( defines, cutorstr ):
           arguments.append( a.strip() )
       # apply arguments
       if arguments:
-        defbody = DEFINeARGUMENT.sub( 
-          lambda x: expand_argument(arguments,x), defbody )
+        newbody = DEFINeARGUMENT.sub( 
+          lambda x: expand_argument(arguments,x,defbody), defbody )
 
-      if cut:
+      if outside:
         tocutit.append( ( d.start(), 
                           d.end(), 
-                          defbody ) )
-      else: # cut object
-        cutorstr = cutorstr[:d.start()] + defbody + cutorstr[d.end():]
+                          newbody ) )
+      else: # inside define block
+        cutorstr = cutorstr[:d.start()] + newbody + cutorstr[d.end():]
 
     if tocutit:
       cutorstr.replace_preserving( tocutit )
 
   return cutorstr
       
-def expand_argument( arguments, matchobject ):
+def expand_argument( arguments, matchobject, body ):
   no = int( matchobject.group(1) )
   try:
     return arguments[ no - 1]
   except IndexError:
-    # TODO log
+    log_err( "Missing argument for define: '%s'\n" % body ) 
     return ""
 
 # string support
@@ -638,7 +640,7 @@ def reduce_arithmetic( cut ):
 def get_arithmetic_units( a ):
   """naive assumption that units will be the same"""
   """ returns first found unit """
-  # TODO unit recalculations
+  # TODO unit recalc
   unit = None
   all = ARITHMETIcUNITsRE.finditer( a )
   for u in all:
@@ -646,12 +648,14 @@ def get_arithmetic_units( a ):
       unit = u.group()
     else:
       if unit != u.group():
-        pass # wrong unit - TODO 
+        log_err( "Wrong unit in the expression: '%s'\n" % a )
+        pass 
   # remove units
   a = ARITHMETIcUNITsRE.sub( "", a )
   return (a, unit)
 
-# TODO string support - but maybe really not needed
+# TODO str supp
+# but maybe really not needed
 RGBaRE = re.compile( r"""
     \W          # cannot be \b because of \#
     (           # 
@@ -715,7 +719,7 @@ RULeRE = re.compile( r"""
 (?P<delim>[;\n]?) # delimeter
 """ % STRINgSUBRE, re.S | re.X ) 
 
-# TODO string support, better parentheses
+# TODO str supp
 VALUeRE = re.compile( r"(\S+\s*\(.*?\)|\S+)"  )
 UNItRE = re.compile( r"\b\d+([a-z])\b" )
   
@@ -793,7 +797,6 @@ MINIFySPACEsRE = re.compile( r"""
 |
   # spaces left (and right) of :
   \s+ ( : ) \s*
-   # TODO this is CPU killer
 #  # but not in selectors: not followed by a {
 #  (?!
 #    (?:
@@ -823,7 +826,7 @@ def replace_spaces( m ):
       out += g
   return out
 
-# TODO string support
+# TODO str supp
 INCLUDEsBLOCkRE = re.compile( r"""
   @cod-includes?
   \s*
@@ -831,7 +834,7 @@ INCLUDEsBLOCkRE = re.compile( r"""
   (.*?) # everything up to close
   }
 """, re.X|re.S ) 
-# TODO string support
+# TODO str supp
 INCLUDEdFILeRE = re.compile( r"""
   \s*
   (["']?)
@@ -900,7 +903,6 @@ def put_css_on_diet( a, error_handler ):
   expand_defines( definesdict, contentcut )
   reduce_arithmetic( contentcut )
   put_on_diet( contentcut )
-  #TODO where it should be
   expand_rgba( contentcut )
 
   if not a.no_comments:
@@ -942,7 +944,7 @@ def include_files_recursiv( filename, included_sha1 ):
   sha1.update( content.encode('utf-8') )
   sha1 = sha1.digest()
   if sha1 in included_sha1:
-    # TODO log 
+    log_err( "File %s won't be included second time\n" % filename )
     return ( None, None )
   else:
     included_sha1.append( sha1 )
@@ -998,7 +1000,6 @@ www.cofoh.com/css-on-diet""",
   # FINISH
   args = parser.parse_args()
   if args.minify_css:
-    # because we don't operate on CUT object - TODO
     args.no_comments = True
     args.no_header = True
 
