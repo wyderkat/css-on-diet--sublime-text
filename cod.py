@@ -4,7 +4,9 @@
 #  www.cofoh.com
 # Licensed under GPL-v3
 ##
-VERSION = "1.3.2"
+from __future__ import division # for python2-3 compatibility
+
+VERSION = "1.3.3"
 PROToVERSION = "1.3"
 
 PROPERTyMNEMONICS = {
@@ -204,6 +206,7 @@ import re
 import sys
 from os import path
 import hashlib
+import math
 
 
 def error_handler( msg ):
@@ -622,12 +625,15 @@ def reduce_arithmetic( cut ):
   for a in arith:
     astr = a.group(1)
     if not ARITHMETIcAtLEAStTWoRE.search( astr ):
-      continue # at least one operator and digit to be arythmetic expression
+      continue # at least one operator and digit to be arithmetic expression
     ( expr, unit ) = get_arithmetic_units( astr )
     try:
       result = eval(expr, {})
     except SyntaxError:
       continue
+    if "." not in expr:
+      result = math.trunc( result )
+
     resultstr = str(result)
     if unit:
       resultstr += unit
