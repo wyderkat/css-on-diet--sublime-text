@@ -4,7 +4,7 @@ CSS-On-Diet - easy and fast CSS preprocessor
 This is [CSS-On-Diet](http://www.cofoh.com/css-on-diet) package for Sublime Text v2 and v3 for Mac, Linux and Windows. 
 [CSS-On-Diet](http://www.cofoh.com/css-on-diet) is a preprocessor. It works like [Emmet](http://emmet.io/), but on the CSS level.  
 
-![screenshot](https://raw.github.com/wyderkat/css-on-diet--sublime-text/master/screenshot.png)
+![screenshot](https://raw.github.com/wyderkat/css-on-diet--sublime-text/master/screenshot.gif)
 
 This package includes:
 

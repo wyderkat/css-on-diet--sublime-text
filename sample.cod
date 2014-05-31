@@ -9,13 +9,13 @@ body {
 
 @cod-defines {
   C_Logo #430ca880
-  IM122 url("img_tree.png")
+  IMaaa url("tree.png")
   BAR 100p
 }
 
 .element {
   col C_Logo
-  ba- C_Logo IM122 nr ri to;
+  ba- IMaaa nr ri to
   mal BAR+10
 }
 
