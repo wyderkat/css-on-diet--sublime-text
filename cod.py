@@ -4,10 +4,22 @@
 #  www.cofoh.com
 # Licensed under GPL-v3
 ##
-from __future__ import division # for python2-3 compatibility
 
-VERSION = "1.4"
-PROToVERSION = "1.4"
+#{{{ import
+
+from __future__ import division # for python2-3 compatibility
+import re
+import sys
+from os import path
+import hashlib
+import math
+
+#}}}
+
+VERSION = "1.5"
+PROToVERSION = "1.5"
+
+#{{{ Mnemonics List
 
 PROPERTyMNEMONICS = {
   "col":"color",
@@ -202,12 +214,8 @@ UNItMNEMONICS = {
   "x":"ex",
 }
 
-import re
-import sys
-from os import path
-import hashlib
-import math
-
+#}}}
+#{{{ Globals
 
 def error_handler( msg ):
   pass
@@ -217,12 +225,12 @@ class a_preprocess_error( Exception ):
   def __init__(me, errorcode):
     me.errorcode = errorcode
 
-
-
 APpDIR = path.dirname( path.realpath(__file__) )
 
-NESTEdRE = re.compile( r"\*/" )
+#}}}
+#{{{ Class a_cut
 
+NESTEdRE = re.compile( r"\*/" )
 class a_cut( object ):
   """
   A cut string. For us this is CSS content where comments are cut out,
@@ -239,6 +247,15 @@ class a_cut( object ):
 
   def set_str( me, str ):
     me.str = str
+
+  # it has to preserve cut register
+  def append( me, str ):
+    me.str += str
+
+  def register_append( me, str ):
+    (afterlastcut, _) =  me.last_cut_dinstances()
+    me.cutregister.append( ( afterlastcut, str ) )
+
 
   def cut_and_save( me, indexes ):
     """ 
@@ -412,7 +429,8 @@ class a_cut( object ):
       result = True
     return ( result, newcutreg )
 
-
+#}}}
+#{{{ Comments
 
 COMMENTsRE = re.compile( r"""
                         \\"  |  # should it be before quotes ? probably
@@ -476,6 +494,9 @@ def rm_comments( cut ):
         clevel += 1
     
   cut.cut_and_save( matchesidx )
+
+#}}}
+#{{{ Defines
 
 # TODO str supp
 DEFINEsBLOCkRE = re.compile( r"""
@@ -593,6 +614,119 @@ def expand_argument( arguments, matchobject, body ):
     log_err( "Missing argument for define: '%s'\n" % body ) 
     return ""
 
+#}}}
+#{{{ Medias
+
+MEDIaBLOCkRE = re.compile( r"""
+  @cod-medias?
+  \s*
+  {
+  (.*?) # everything up to close
+  }
+                            """, re.X|re.S|re.M ) 
+
+MEDIaNAMeCHAR = DEFINeNAMeCHAR
+# TODO str supp
+MEDIaRe = re.compile( r"""
+  (?P<name>%s+)   # some freedom in naming
+  [ \t\r\f\v]*       # not \n! can be empty when no body
+  (?P<body>.*?)      # can be empty
+  $                  # end of line or text
+                       """ % MEDIaNAMeCHAR, re.X|re.M ) 
+
+# TODO common base class for a_medias and a_defines
+class a_media(object):
+  def __init__( me ):
+    # list of 
+    # (name, body, @name)
+    # where @name is word to find 
+    me.db = []
+  def add_media( me, name, body ):
+    me.db.append( (name, body, "@"+name) )
+
+  def empty( me ):
+    return len(me.db) == 0
+
+  def find_index( me, atname ):
+    index = 0
+    for name,body,at in me.db:
+      if atname == at:
+        return index
+      index += 1
+    return None
+  def get_breakpoints( me ):
+    return map( lambda x: (x[0],x[1]), me.db) 
+
+def read_media( cut ):
+  media = a_media()
+  blocks = MEDIaBLOCkRE.finditer( str(cut) )
+  to_replace = []
+  for b in blocks:
+    mediasblock = b.group(1)
+    to_replace.append( ( b.start(), b.end(), "" ) )
+
+    mediamatch = MEDIaRe.finditer( mediasblock )
+    for m in mediamatch:
+      name = m.group("name") 
+      body = m.group("body")
+      # self expand
+      # Not for media # body = expand_defines( media, body )
+      #
+      media.add_media( name, body )
+  cut.replace_preserving( to_replace )
+  return media
+
+def move_media( media, cut ):
+
+  if not media.empty():
+
+    rules = RULeRE.finditer( str(cut) )
+    toreplace = []
+    saved = [] # selected @media to place at the end of file
+               # structure of tables and tuples 
+               # cannot use OrderedDict because python2.6
+    for n,b in media.get_breakpoints():
+      saved.append( (n, b, []) )
+
+    # faster would be just look for lines with @mediabreakpoints
+    # but how to get selector then?
+    for r in rules:
+      
+      selector = r.group(1)
+      declarations = DECLARATIOnRE.finditer( str(cut), r.start(2), r.end(2) )
+      for d in declarations:
+
+        value = d.group("value")
+        splitted = value.split()
+        if len(splitted) >0 :
+          idx = media.find_index( splitted[-1] )
+          if idx != None:
+            decla = d.group().replace( splitted[-1], "" ) # remove @medianame
+            for selectorsaved, declarationssaved in saved[idx][2]:
+              if selectorsaved == selector:
+                declarationssaved.append( decla )
+                break
+            else:
+              saved[idx][2].append( ( selector, [ decla ] ) )
+            toreplace.append( ( d.start(), 
+                                d.end(), 
+                                "" ) )
+    cut.replace_preserving( toreplace )
+
+    for medianame, mediabody, rules in saved:
+      out = "@media %s {\n" % mediabody
+      for selector, declarations in rules:
+        out += "%s {\n" % selector
+        for decla in declarations:
+          out += "%s" % decla
+        out += "}\n" 
+      out += "}\n" 
+      cut.register_append("/**  Breakpoint: %s  **/\n" % medianame)
+      cut.append( out )
+
+#}}}
+#{{{ Arithmetics
+
 # string support
 ARITHMETIcRE = re.compile( r"""
     \s          # has to be sourrounded by white characters
@@ -669,6 +803,9 @@ def get_arithmetic_units( a ):
   a = ARITHMETIcUNITsRE.sub( "", a )
   return (a, unit)
 
+#}}}
+#{{{ RGBA
+
 # TODO str supp
 # but maybe really not needed
 RGBaRE = re.compile( r"""
@@ -700,9 +837,10 @@ def convert_rgba_hex_to_str( color ):
   intvals[3] = round( float(intvals[3])/255, 3 )
   # after round %g will remove trailing zeros
   return "rgba(%d,%d,%d,%.3g)" % tuple(intvals)
-
     
-
+#}}}
+#{{{ Apply Mnemonics
+    
 STRINgSUBRE = r"""
   (?P<string>
     "(?:[^"\\]+|\\.)*"
@@ -710,7 +848,8 @@ STRINgSUBRE = r"""
   )
 """
 
-SEtRE = re.compile( r"""
+RULeRE = re.compile( r"""
+\s*([^;{}]+)\s*  # selector 
 {
   (  # main body
     (?:
@@ -722,7 +861,8 @@ SEtRE = re.compile( r"""
 }
 """ % STRINgSUBRE, re.S | re.X ) 
 
-RULeRE = re.compile( r"""
+DECLARATIOnRE = re.compile( r"""
+\s*   # consume all white space (only for @cod-media?)
 (?P<param>[\w\-]+) # parameter
 (?P<sep>[\s:]+) # optional separator
 (?P<value>
@@ -738,48 +878,50 @@ RULeRE = re.compile( r"""
 VALUeRE = re.compile( r"(\S+\s*\(.*?\)|\S+)"  )
 UNItRE = re.compile( r"\b\d+([a-z])\b" )
   
-def put_on_diet( cut ):
-  sets = SEtRE.finditer( str(cut) )
-  abbmatch = [] # has to be ordered
-  for s in sets:
+def apply_mnemonics( cut ):
+  rules = RULeRE.finditer( str(cut) )
+  toreplace = [] # has to be ordered
+  for r in rules:
 
-    rules = RULeRE.finditer( str(cut), s.start(1), s.end(1) )
-    for rule in rules:
+    declarations = DECLARATIOnRE.finditer( str(cut), r.start(2), r.end(2) )
+    for d in declarations:
 
-      if rule.group("param") in PROPERTyMNEMONICS:
-        abbmatch.append( ( rule.start("param"), 
-                             rule.end("param"), 
-                             PROPERTyMNEMONICS[ rule.group("param") ] ) )
+      if d.group("param") in PROPERTyMNEMONICS:
+        toreplace.append( ( d.start("param"), 
+                             d.end("param"), 
+                             PROPERTyMNEMONICS[ d.group("param") ] ) )
 
-      if not ":" in rule.group("sep"):
-        abbmatch.append( ( rule.start("sep"), 
-                           rule.start("sep"), # insert at the begining
+      if not ":" in d.group("sep"):
+        toreplace.append( ( d.start("sep"), 
+                           d.start("sep"), # insert at the begining
                            ":" ) )
 
 
-      values = VALUeRE.finditer( str(cut), rule.start("value"), rule.end("value") )
-      for val in values:
-        if val.group(1) in VALUeMNEMONICS:
-          abbmatch.append( ( val.start(1), 
-                               val.end(1), 
-                               VALUeMNEMONICS[ val.group(1) ] ) )
+      values = VALUeRE.finditer( str(cut), d.start("value"), d.end("value") )
+      for v in values:
+        if v.group(1) in VALUeMNEMONICS:
+          toreplace.append( ( v.start(1), 
+                              v.end(1), 
+                              VALUeMNEMONICS[ v.group(1) ] ) )
         else:
-          units = UNItRE.finditer( str(cut), val.start(1), val.end(1) )
-          for unit in units:
-            if unit.group(1) in UNItMNEMONICS:
-              abbmatch.append( ( unit.start(1), 
-                                   unit.end(1), 
-                                   UNItMNEMONICS[ unit.group(1) ] ) )
+          units = UNItRE.finditer( str(cut), v.start(1), v.end(1) )
+          for u in units:
+            if u.group(1) in UNItMNEMONICS:
+              toreplace.append( ( u.start(1), 
+                                  u.end(1), 
+                                  UNItMNEMONICS[ u.group(1) ] ) )
 
 
 
-      if rule.group("delim") == "\n":
-        abbmatch.append( ( rule.start("delim"), 
-                           rule.start("delim"), # insert at the begining
+      if d.group("delim") == "\n":
+        toreplace.append( ( d.start("delim"), 
+                           d.start("delim"), # insert at the begining
                            ";" ) )
 
-  cut.replace_preserving( abbmatch )
+  cut.replace_preserving( toreplace )
 
+#}}}
+#{{{ Header
 
 HEADErRE = re.compile( r"^//!(.*?)\n", re.S )
 def extract_header( cut ):
@@ -794,9 +936,8 @@ def add_header( cut ):
   header = "/* Generated by oryginal css-on-diet v%s */\n"  % VERSION
   cut.set_str( header + str(cut) )
 
-def flat_newlines( cut ):
-  cut.set_str( str(cut).replace("\\\n","") )
-
+#}}} 
+#{{{ Minify
 
 MINIFySPACEsRE = re.compile( r"""
   %s           # whole string 
@@ -843,6 +984,9 @@ def replace_spaces( m ):
     if g:
       out += g
   return out
+
+#}}}
+#{{{ Includes
 
 # TODO str supp
 INCLUDEsBLOCkRE = re.compile( r"""
@@ -899,48 +1043,6 @@ def choose_nlcharacter( newlines ):
     nl = "\n" # unix by default
   return nl
 
-
-def put_css_on_diet( a, error_handler ):
-  global log_err
-  log_err = error_handler
-
-  contentcut = a_cut( "" ) # empty because it is meta cod file for cmd line args
-  tomerge = []
-  included_sha1 = []
-  nlcharacterlist = [ ]
-  for filename in a.cod_files:
-    incontentcut, innlcharacter = include_files_recursiv ( a, filename, included_sha1 )
-    if incontentcut == None:
-      continue
-    nlcharacterlist.append( innlcharacter )
-    tomerge.append( ( 0, 0, incontentcut ) ) # 0 means at the end because contentcut is empty
-  contentcut.replace_preserving( tomerge, merge = True )
-  nlcharacter = choose_nlcharacter( nlcharacterlist )
-
-  definesdict = read_defines( contentcut )
-  expand_defines( definesdict, contentcut )
-  reduce_arithmetic( contentcut )
-  put_on_diet( contentcut )
-  expand_rgba( contentcut )
-
-  if not a.no_comments:
-    contentcut.recover_from_save() 
-  if not a.no_header:
-    add_header( contentcut )
-
-  content = str(contentcut)
-
-  if a.minify_css:
-    content = minify_spaces( content )
-
-  if nlcharacter != None:
-    content = content.replace("\n", nlcharacter )
-
-  handleout = open(a.output, 'w') if a.output!="-" else sys.stdout
-
-  handleout.write( content )
-  if handleout is not sys.stdout:
-    handleout.close()
 
 def include_files_recursiv( a, filename, included_sha1 ):
   if filename == "-":
@@ -1001,6 +1103,59 @@ def include_files_recursiv( a, filename, included_sha1 ):
   contentcut.replace_preserving( tomerge, merge=True )
   nlcharacter = choose_nlcharacter( nlcharacterlist )
   return (contentcut, nlcharacter)
+
+def flat_newlines( cut ):
+  cut.set_str( str(cut).replace("\\\n","") )
+
+#}}}
+#{{{ put_css_on_diet 
+
+def put_css_on_diet( a, error_handler ):
+  global log_err
+  log_err = error_handler
+
+  contentcut = a_cut( "" ) # empty because it is meta cod file for cmd line args
+  tomerge = []
+  included_sha1 = []
+  nlcharacterlist = [ ]
+  for filename in a.cod_files:
+    incontentcut, innlcharacter = include_files_recursiv ( a, filename, included_sha1 )
+    if incontentcut == None:
+      continue
+    nlcharacterlist.append( innlcharacter )
+    tomerge.append( ( 0, 0, incontentcut ) ) # 0 means at the end because contentcut is empty
+  contentcut.replace_preserving( tomerge, merge = True )
+  nlcharacter = choose_nlcharacter( nlcharacterlist )
+
+  definesdict = read_defines( contentcut )
+  expand_defines( definesdict, contentcut )
+  reduce_arithmetic( contentcut )
+  medias = read_media( contentcut )
+  move_media( medias, contentcut )
+  apply_mnemonics( contentcut )
+  expand_rgba( contentcut )
+
+  if not a.no_comments:
+    contentcut.recover_from_save() 
+  if not a.no_header:
+    add_header( contentcut )
+
+  content = str(contentcut)
+
+  if a.minify_css:
+    content = minify_spaces( content )
+
+  if nlcharacter != None:
+    content = content.replace("\n", nlcharacter )
+
+  handleout = open(a.output, 'w') if a.output!="-" else sys.stdout
+
+  handleout.write( content )
+  if handleout is not sys.stdout:
+    handleout.close()
+
+#}}}
+#{{{ __main__
 
 if __name__ == "__main__":
 
@@ -1076,3 +1231,6 @@ if __name__ == "__main__":
     put_css_on_diet( args, sys.stderr.write )
   except a_preprocess_error as e:
     sys.exit( e.errorcode )
+#}}}
+
+# vim: set foldmethod=marker:
