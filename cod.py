@@ -16,8 +16,8 @@ import math
 
 #}}}
 
-VERSION = "1.5"
-PROToVERSION = "1.5"
+VERSION = "1.6.1"
+PROToVERSION = "1.6"
 
 #{{{ Mnemonics List
 
@@ -181,6 +181,7 @@ VALUeMNEMONICS = {
   "is":"inset",
   "it":"italic",
   "le":"left",
+  "lg":"linear-gradient",
   "li":"linear",
   "lo":"lowercase",
   "mi":"middle",
@@ -191,6 +192,7 @@ VALUeMNEMONICS = {
   "pb":"padding-box",
   "po":"pointer",
   "re":"relative",
+  "rg":"radial-gradient",
   "ri":"right",
   "rx":"repeat-x",
   "ry":"repeat-y",
@@ -257,24 +259,30 @@ class a_cut( object ):
     me.cutregister.append( ( afterlastcut, str ) )
 
 
-  def cut_and_save( me, indexes ):
+  def cut_and_save( me, indexes, a ):
     """ 
-    cut data (like comments) and save them in register for later recover
+    cut data (like comments) and save them in the register for later recover
     """
     result = ""
     last = 0
+    fromlastsaved = 0
     for start,end in indexes:
       result += me.str[ last : start ]
       tosave = me.str[ start: end ]
-      tail = -2 # not to re-nest
-      # extract cpp comments
-      if tosave[:2] == "//":
-        tosave = "/*" + tosave[2:] + "*/"
-        tail = -2
-      # re-nest nested comments
-      tosave = NESTEdRE.sub( "*-/", tosave[:tail] ) + tosave[tail:]
-      #
-      me.cutregister.append( ( start-last, tosave ) )
+      # OK, removed. Now save in the register only if
+      # 1. comments in the output are turned on
+      # or
+      # 3. comment doesn't contain exclamation under 3rd letter
+      fromlastsaved += start-last
+      if not a.no_comments or (  len(tosave)>2 and tosave[2] == "!"  ):
+        # extract cpp comments
+        if tosave[:2] == "//":
+          tosave = "/*" + tosave[2:] + "*/"
+        # re-nest nested comments
+        tosave = NESTEdRE.sub( "*-/", tosave[:-2] ) + tosave[-2:]
+        #
+        me.cutregister.append( ( fromlastsaved, tosave ) )
+        fromlastsaved = 0
       last = end
     result += me.str[ last : ]
     me.str = result
@@ -443,7 +451,7 @@ COMMENTsRE = re.compile( r"""
                         \*/  
                         """, re.X ) 
 
-def rm_comments( cut ):
+def rm_comments( cut, a ):
   nocomment = 0 # no inside comment
   c = 1 # c-like comments, but nested
   cpp = 2 # c++like comments
@@ -493,7 +501,7 @@ def rm_comments( cut ):
         mode = c
         clevel += 1
     
-  cut.cut_and_save( matchesidx )
+  cut.cut_and_save( matchesidx, a )
 
 #}}}
 #{{{ Defines
@@ -527,9 +535,12 @@ class a_defines(object):
     # to avoid substring substitutions inside @cod-defines
     me.db = []
   def add_def( me, name, body ):
-    pat1 = r"(?<!%s)" % DEFINeNAMeCHAR
+    # because of - in arythmeticts, this is not possible
+    #pat1 = r"(?<!%s)" % DEFINeNAMeCHAR
+    pat1 = r"\b"
     pat2 = re.escape( name ) 
-    pat3 = r"(?!%s)" % DEFINeNAMeCHAR
+    #pat3 = r"(?!%s)" % DEFINeNAMeCHAR
+    pat3 = r"\b"
     pat4 = r"(?:\s*\((.*?)\))?" # optional parentheses
 
     patin = re.compile( pat2 + pat4 ) 
@@ -875,7 +886,7 @@ DECLARATIOnRE = re.compile( r"""
 """ % STRINgSUBRE, re.S | re.X ) 
 
 # TODO str supp
-VALUeRE = re.compile( r"(\S+\s*\(.*?\)|\S+)"  )
+VALUeRE = re.compile( r"([\w!%-]+)(\s*\(.*?\))?"  )
 UNItRE = re.compile( r"\b\d+([a-z])\b" )
   
 def apply_mnemonics( cut ):
@@ -1080,7 +1091,7 @@ def include_files_recursiv( a, filename, included_sha1 ):
   contentcut= a_cut( content )
   flat_newlines( contentcut )
   extract_header( contentcut )
-  rm_comments( contentcut )
+  rm_comments( contentcut, a )
   tomerge = []
   for infile, position in find_includes( contentcut ):
     alldirs = [directory] + a.include_dirs
@@ -1135,8 +1146,7 @@ def put_css_on_diet( a, error_handler ):
   apply_mnemonics( contentcut )
   expand_rgba( contentcut )
 
-  if not a.no_comments:
-    contentcut.recover_from_save() 
+  contentcut.recover_from_save() 
   if not a.no_header:
     add_header( contentcut )
 
@@ -1170,7 +1180,7 @@ if __name__ == "__main__":
     argparse.ArgumentParser.add_argument = argparse.ArgumentParser.add_option
 
   parser = argparse.ArgumentParser(
-    description= "CSS-On-Diet - preprocessor for CSS files",
+    description= "CSS-On-Diet - preprocessor for CSS files - ver. %s" % VERSION,
     epilog="www.cofoh.com/css-on-diet"
   )
 
@@ -1192,12 +1202,19 @@ if __name__ == "__main__":
     help="Minify CSS result code. Implies --no-comments and --no-header"
   )
   parser.add_argument(
-    '-I', '--include-dirs', metavar='dir[,dir...]', 
-    help="List of additional directories to look for included files. Separtor is the comma sign."
+    '-I', '--include-dirs', metavar='dir[,dir...]',
+    action='append', # repeating arguments
+    help="List of additional directories to look for included files. " +\
+         "Multiple dirs can be separated by commas or by multiple " +\
+         "-I(--include-dirs) arguments."
+  )
+  parser.add_argument(
+    '-v', '--version',  action="store_true",
+    help="Print software and specification versions"
   )
   # FINISH
   if not optmode:
-    parser.add_argument('cod_files', metavar='file.cod', nargs="+",
+    parser.add_argument('cod_files', metavar='file.cod', nargs="*",
                         help='CSS-On-Diet file to preprocess.' +
                         ' Multiple files are joined.' +
                         ' If "-" given read from STDIN instead of file.')
@@ -1205,6 +1222,16 @@ if __name__ == "__main__":
   else:
     (args, leftargs) = parser.parse_args()
     args.cod_files = leftargs
+
+  if args.version:
+    print("Version %s (for specification %s)" % (VERSION, PROToVERSION))
+    sys.exit(0)
+
+  # has to be after args.version
+  if len( args.cod_files ) < 1:
+    sys.stderr.write("Error: Give at least one file to preprocess\n")
+    sys.exit(1)
+    
 
   stdinasfile = 0
   for f in args.cod_files:
@@ -1220,7 +1247,10 @@ if __name__ == "__main__":
     args.no_header = True
 
   if args.include_dirs:
-    args.include_dirs = args.include_dirs.split(",")
+    result = []
+    for i in args.include_dirs:
+      result += i.split(",")
+    args.include_dirs = result
   else:
     args.include_dirs = [] # more useful than None
 
