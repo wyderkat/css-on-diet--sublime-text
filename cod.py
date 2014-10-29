@@ -1,23 +1,36 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 ###
 # Copyright 2014 Tomasz Wyderka <wyderkat@cofoh.com>
 #  www.cofoh.com
 # Licensed under GPL-v3
 ##
 
+##
+# Coding Standard:
+# No PEP8 compatibility! Especially:
+# - Indentation is just 2 spaces
+# - The word "me" is used instead of "self" 
+# - Extra spaces are used in parentheses to increase readability
+
 #{{{ import
 
-from __future__ import division # for python2-3 compatibility
+from __future__ import division  # Compatibility
+
+import hashlib
+import math
 import re
 import sys
 from os import path
-import hashlib
-import math
 
 #}}}
 
-VERSION = "1.6.1"
-PROToVERSION = "1.6"
+
+""" CSS-On-Diet is an easy and fast CSS preprocessor for CSS files. """
+
+
+VERSION = "1.7.0"
+PROToVERSION = "1.7"
 
 #{{{ Mnemonics List
 
@@ -210,6 +223,7 @@ VALUeMNEMONICS = {
 UNItMNEMONICS = {
   "p":"px",
   "e":"em",
+  "r":"rem",
   "i":"in",
   "c":"cm",
   "m":"mm",
@@ -223,11 +237,23 @@ def error_handler( msg ):
   pass
 log_err = error_handler
 
+
 class a_preprocess_error( Exception ):
-  def __init__(me, errorcode):
+  def __init__( me, errorcode ):
     me.errorcode = errorcode
 
 APpDIR = path.dirname( path.realpath(__file__) )
+
+def replace_list( string, thelist ):
+  newstring = ""
+  lastend = 0
+  for start, end, replacement in thelist:
+    newstring += string[lastend:start] + replacement
+    lastend = end
+  newstring += string[lastend:]
+  return newstring
+
+
 
 #}}}
 #{{{ Class a_cut
@@ -300,7 +326,8 @@ class a_cut( object ):
 
   def last_cut_dinstances( me ):
     """ get ( characters after last cut, and last cut absolute position ) """
-    absolutregpos = 0 # absolute register position, because register keeps only relative 
+    # absolute register position, because register keeps only relative
+    absolutregpos = 0
     for cut in me.cutregister:
       absolutregpos += cut[0]
     return ( len(me.str) - absolutregpos, absolutregpos )
@@ -316,15 +343,17 @@ class a_cut( object ):
     Delete comments between start:end.
     """
     if indexeswithdata:
-      newstr = "" # substituted string, concatenated by iteration
-      laststridx = 0 # pos of last character in string
-      newcutreg = [] # updated cut register, constructed by iteration
-      lastregidx = 0 # pos of last visited record in register
-      absolutregpos = 0 # absolute register position, because register keeps only relative position from last record. 
+      newstr = ""  # substituted string, concatenated by iteration
+      laststridx = 0  # pos of last character in string
+      newcutreg = []  # updated cut register, constructed by iteration
+      lastregidx = 0  # pos of last visited record in register
+      # absolute register position,
+      # because register keeps only relative position from last record.
+      absolutregpos = 0
 
       # following loop assumes indexeswithdata and cutregister are sorted!
-      again = False # flag for visiting register record more than once 
-      afterremovefix = 0 # when removing comments
+      again = False  # flag for visiting register record more than once
+      afterremovefix = 0  # when removing comments
 
       for start,end,stringorcut in indexeswithdata:
         # SUBSTITUTE
@@ -343,27 +372,27 @@ class a_cut( object ):
             afterremovefix = 0
 
           # Main condition to check if cut should be updated
-          # it works because als cuts before are skipped in the 
+          # it works because als cuts before are skipped in the
           # "else" statement below
           if absolutregpos > start:
-            if absolutregpos < end: 
+            if absolutregpos < end:
               # delete this register (together with content)
               if again:
                 try:
                   deleted = newcutreg.pop()
                 except IndexError:
-                  log_err ("COD internal error which never should happened\n")
+                  log_err("COD internal error which never should happened\n")
                   sys.exit(42)
                 again = False
               else:
                 deleted = cut
               # fix next register
               afterremovefix = deleted[0]
-              lastregidx += 1 # skip this record next iteration
-              continue # it's not needed, but for visibility
+              lastregidx += 1  # skip this record next iteration
+              continue  # it's not needed, but for visibility
             else:
               #how much substitute changed text
-              delta = len(str(stringorcut)) - (end-start) 
+              delta = len(str(stringorcut)) - (end-start)
               if not again:
                 # update register from oryginal
                 newcutreg.append(  ( cut[0] + delta, cut[1] )  )
@@ -414,16 +443,17 @@ class a_cut( object ):
     result = False
     if stringorcut != []:
 
-      (mergefilling, mergeabsolute) =  stringorcut.last_cut_dinstances()
+      (mergefilling, mergeabsolute) = stringorcut.last_cut_dinstances()
       if tail:
         lastindex = None
       else:
         lastindex = -1
 
-      a = 0 
-      for cut in newcutreg[:lastindex]: # the last included cut is before -1
+      a = 0
+      for cut in newcutreg[:lastindex]:  # the last included cut is before -1
         a += cut[0]
-      oldfilling = len(newstr) - len(str(stringorcut)) - a # len() - len() means previous text
+      # len() - len() means previous text
+      oldfilling = len(newstr) - len(str(stringorcut)) - a
       mergecut = stringorcut.cutregister
 
       if mergecut:
@@ -440,7 +470,7 @@ class a_cut( object ):
 #}}}
 #{{{ Comments
 
-COMMENTsRE = re.compile( r"""
+COMMENTsRE = re.compile(r"""
                         \\"  |  # should it be before quotes ? probably
                         \\'  |
                         "    |
@@ -448,8 +478,8 @@ COMMENTsRE = re.compile( r"""
                         \n   |
                         //   |
                         /\*  |
-                        \*/  
-                        """, re.X ) 
+                        \*/
+                        """, re.X)
 
 def rm_comments( cut, a ):
   nocomment = 0 # no inside comment
@@ -459,7 +489,7 @@ def rm_comments( cut, a ):
   singlequote = 4 # strings ' \' '
 
   mode = nocomment
-  clevel = 0 # nesting level of c-like comments
+  clevel = 0  # nesting level of c-like comments
   matchesidx = []
 
   # in pure RE we cannot find nestesd structuries
@@ -541,23 +571,24 @@ class a_defines(object):
     pat2 = re.escape( name ) 
     #pat3 = r"(?!%s)" % DEFINeNAMeCHAR
     pat3 = r"\b"
-    pat4 = r"(?:\s*\((.*?)\))?" # optional parentheses
+    pat4 = r"(?:\s*\((.*?)\))?"  # optional parentheses
 
     patin = re.compile( pat2 + pat4 ) 
-    patout = re.compile( pat1 + pat2 + pat3 + pat4 ) 
+    patout = re.compile( pat1 + pat2 + pat3 + pat4, re.S ) 
 
     i = 0
-    while i< len(me.db):
+    while i < len(me.db):
       if len(name) >= len(me.db[i][0]):
         break
       i += 1
-    me.db.insert(i, (name, body, patin, patout) )
+    me.db.insert(i, (name, body, patin, patout))
 
-  def get_all(me, out):
-    if out:
-      return map( lambda x: (x[3],x[1]) , me.db )
+  def get_all(me, inside):
+    if inside:
+      return [(x[2], x[1]) for x in me.db]
     else:
-      return map( lambda x: (x[2],x[1]) , me.db )
+      return [(x[3], x[1]) for x in me.db]
+
 
 def read_defines( cut ):
   defines = a_defines()
@@ -569,7 +600,7 @@ def read_defines( cut ):
 
     definesmatch = DEFINEsRE.finditer( definesblock )
     for d in definesmatch:
-      name = d.group("name") 
+      name = d.group("name")
       body = d.group("body")
       # self expand
       body = expand_defines( defines, body )
@@ -581,39 +612,73 @@ def read_defines( cut ):
 # TODO str supp
 DEFINeARGUMENT = re.compile( r"_ARG(\d+)_" )
 
-def expand_defines( defines, cutorstr ):
-  if type( cutorstr ) == type( "" ):
-    outside = False
-  else:
-    outside = True
-  
-  for defpat,defbody in defines.get_all( outside ):
 
-    defcandidate = re.finditer( defpat, str(cutorstr) )
+def expand_defines( defines, cutorstr ):
+  inside = isinstance(cutorstr, str)
+
+  for defpat, defbody in defines.get_all(inside):
+
+    cos = str(cutorstr)
+    defcandidate = re.finditer(defpat, cos)
     tocutit = []
     for d in defcandidate:
       newbody = defbody
-      # find arguments 
-      argumentsstring = d.group(1)
+      # find arguments
       arguments = []
-      if argumentsstring:
-        argumentslist = argumentsstring.split(",")
+      moreparenthesis = True
+      start = d.start(1)
+      savedstart = start
+      #TODO check if the previous end doesn't overlap current one
+      end = d.end(1)
+      finalend = d.end()
+      # if arguments
+      if d.group(1): 
+        # inner partheses support
+        while moreparenthesis:
+          inner = cos.count("(", start, end)
+          # if at least one "(" before previous closing ")"
+          if inner > 0:
+            start = end
+            # for every missing ")"
+            for i in range(inner):
+              end = cos.find( ")", end+1 ) # +1 - the end of regex == closing ")"
+              if end == -1:
+                break
+            if end == -1:
+              continue
+          else:
+            moreparenthesis = False
+        if end == -1:
+          continue
+        finalend = end+1
+
+        argumentslist = cos[savedstart:end].split(",")
         for a in argumentslist:
-          arguments.append( a.strip() )
+          arguments.append(a.strip())
+
       # apply arguments
       if arguments:
-        newbody = DEFINeARGUMENT.sub( 
-          lambda x: expand_argument(arguments,x,defbody), defbody )
+        highest = 0
+        for arg in DEFINeARGUMENT.finditer( defbody ):
+          no = int( arg.group(1) )
+          if no > highest:
+            highest = no
+        #
+        newbody = DEFINeARGUMENT.sub( lambda x: expand_argument(arguments, x, defbody), defbody)
+        # append extra arguments at the end
+        if highest < len(arguments):
+          newbody += " " + " ".join( arguments[highest:] )
 
-      if outside:
-        tocutit.append( ( d.start(), 
-                          d.end(), 
-                          newbody ) )
-      else: # inside define block
-        cutorstr = cutorstr[:d.start()] + newbody + cutorstr[d.end():]
+      # d.start() - begining of whole define
+      # finalend - usually equals to d.end(), but in case of
+      #         inner paretheses is further
+      tocutit.append((d.start(), finalend, newbody))
 
     if tocutit:
-      cutorstr.replace_preserving( tocutit )
+      if inside:
+        cutorstr = replace_list(cutorstr, tocutit)
+      else:
+        cutorstr.replace_preserving(tocutit)
 
   return cutorstr
       
@@ -622,7 +687,7 @@ def expand_argument( arguments, matchobject, body ):
   try:
     return arguments[ no - 1]
   except IndexError:
-    log_err( "Missing argument for define: '%s'\n" % body ) 
+    #log_err( "Missing argument for define: '%s'\n" % body ) 
     return ""
 
 #}}}
@@ -650,7 +715,7 @@ class a_media(object):
   def __init__( me ):
     # list of 
     # (name, body, @name)
-    # where @name is word to find 
+    # where @name is word to find
     me.db = []
   def add_media( me, name, body ):
     me.db.append( (name, body, "@"+name) )
@@ -665,10 +730,12 @@ class a_media(object):
         return index
       index += 1
     return None
-  def get_breakpoints( me ):
-    return map( lambda x: (x[0],x[1]), me.db) 
 
-def read_media( cut ):
+  def get_breakpoints(me):
+    return [(x[0], x[1]) for x in me.db]
+
+
+def read_media(cut):
   media = a_media()
   blocks = MEDIaBLOCkRE.finditer( str(cut) )
   to_replace = []
@@ -678,7 +745,7 @@ def read_media( cut ):
 
     mediamatch = MEDIaRe.finditer( mediasblock )
     for m in mediamatch:
-      name = m.group("name") 
+      name = m.group("name")
       body = m.group("body")
       # self expand
       # Not for media # body = expand_defines( media, body )
@@ -709,10 +776,10 @@ def move_media( media, cut ):
 
         value = d.group("value")
         splitted = value.split()
-        if len(splitted) >0 :
+        if len(splitted) > 0:
           idx = media.find_index( splitted[-1] )
-          if idx != None:
-            decla = d.group().replace( splitted[-1], "" ) # remove @medianame
+          if idx is not None:
+            decla = d.group().replace( splitted[-1], "" )  # remove @medianame
             for selectorsaved, declarationssaved in saved[idx][2]:
               if selectorsaved == selector:
                 declarationssaved.append( decla )
@@ -730,8 +797,8 @@ def move_media( media, cut ):
         out += "%s {\n" % selector
         for decla in declarations:
           out += "%s" % decla
-        out += "}\n" 
-      out += "}\n" 
+        out += "}\n"
+      out += "}\n"
       cut.register_append("/**  Breakpoint: %s  **/\n" % medianame)
       cut.append( out )
 
@@ -747,10 +814,12 @@ ARITHMETIcRE = re.compile( r"""
     \d+px?|     # digit with unit
     \d+%|       # ...
     \d+em?|
+    \d+r(?:em)?|
     \d+in?|
     \d+cm?|
     \d+mm?|
     \d+e?x|
+    \d+s|
     \d+pt|
     \d+pc|
     \d+         # has to be at the end - no unit
@@ -762,10 +831,12 @@ ARITHMETIcUNITsRE = re.compile( r"""
     px?|
     %|
     em?|
+    r(?:em)?|
     in?|
     cm?|
     mm?|
     e?x|
+    s|
     pt|
     pc
                        """,  re.X ) 
@@ -804,7 +875,7 @@ def get_arithmetic_units( a ):
   unit = None
   all = ARITHMETIcUNITsRE.finditer( a )
   for u in all:
-    if unit==None:
+    if unit is None:
       unit = u.group()
     else:
       if unit != u.group():
@@ -821,13 +892,15 @@ def get_arithmetic_units( a ):
 # but maybe really not needed
 RGBaRE = re.compile( r"""
     \W          # cannot be \b because of \#
-    (           # 
+    (           #
     \#          # don't forget to escape it
     [\dabcdefABCDEF]{8,8} # 8 positions
     )
     \b
-                       """,  re.X | re.S ) 
-def expand_rgba( cut ):
+                       """,  re.X | re.S)
+
+
+def expand_rgba(cut):
   tochange = []
   rgba = RGBaRE.finditer( str(cut) )
   for c in rgba:
@@ -851,7 +924,7 @@ def convert_rgba_hex_to_str( color ):
     
 #}}}
 #{{{ Apply Mnemonics
-    
+
 STRINgSUBRE = r"""
   (?P<string>
     "(?:[^"\\]+|\\.)*"
@@ -859,8 +932,8 @@ STRINgSUBRE = r"""
   )
 """
 
-RULeRE = re.compile( r"""
-\s*([^;{}]+)\s*  # selector 
+RULeRE = re.compile(r"""
+\s*([^;{}]+)\s*  # selector
 {
   (  # main body
     (?:
@@ -887,6 +960,7 @@ DECLARATIOnRE = re.compile( r"""
 
 # TODO str supp
 VALUeRE = re.compile( r"([\w!%-]+)(\s*\(.*?\))?"  )
+#VALUeRE = re.compile( r"([\w!%-]+)"  )
 UNItRE = re.compile( r"\b\d+([a-z])\b" )
   
 def apply_mnemonics( cut ):
@@ -972,7 +1046,7 @@ MINIFySPACEsRE = re.compile( r"""
 #    (?:
 #      [^{}"']+
 #    | "(?:[^"\\]+|\\.)*"
-#    | '(?:[^'\\]+|\\.)*' 
+#    | '(?:[^'\\]+|\\.)*'
 #    )*
 #    {
 #  )
@@ -1037,10 +1111,10 @@ def find_includes( cut ):
 
 def get_nlcharacter( hdl ):
   nl = None
-  if type(hdl.newlines) == type(""):
+  if isinstance(hdl.newlines, str):
     nl = hdl.newlines
-  elif type(hdl.newlines) == type(()):
-    nl = choose_nlcharacter( hdl.newlines )
+  elif isinstance(hdl.newlines, tuple):
+    nl = choose_nlcharacter(hdl.newlines)
   return nl
 
 def choose_nlcharacter( newlines ):
@@ -1155,10 +1229,10 @@ def put_css_on_diet( a, error_handler ):
   if a.minify_css:
     content = minify_spaces( content )
 
-  if nlcharacter != None:
-    content = content.replace("\n", nlcharacter )
+  if nlcharacter is not None:
+    content = content.replace("\n", nlcharacter)
 
-  handleout = open(a.output, 'w') if a.output!="-" else sys.stdout
+  handleout = open(a.output, 'w') if a.output != "-" else sys.stdout
 
   handleout.write( content )
   if handleout is not sys.stdout:
@@ -1181,24 +1255,24 @@ if __name__ == "__main__":
 
   parser = argparse.ArgumentParser(
     description= "CSS-On-Diet - preprocessor for CSS files - ver. %s" % VERSION,
-    epilog="www.cofoh.com/css-on-diet"
+    epilog="cssondiet.com"
   )
 
   parser.add_argument(
     '-o', '--output', metavar="output.css",
     default="-",
-    help='output file to save result css. If not given or "-" string, print to STDOUT'
+    help='output file to save CSS. If not given or "-" string, print to STDOUT'
   )
   parser.add_argument(
-    '-c', '--no-comments',  action="store_true",
+    '-c', '--no-comments', action="store_true",
     help='cut out all comments'
   )
   parser.add_argument(
-    '-d', '--no-header',  action="store_true",
+    '-d', '--no-header', action="store_true",
     help="don't add header line"
   )
   parser.add_argument(
-    '-m', '--minify-css',  action="store_true",
+    '-m', '--minify-css', action="store_true",
     help="Minify CSS result code. Implies --no-comments and --no-header"
   )
   parser.add_argument(
@@ -1231,7 +1305,6 @@ if __name__ == "__main__":
   if len( args.cod_files ) < 1:
     sys.stderr.write("Error: Give at least one file to preprocess\n")
     sys.exit(1)
-    
 
   stdinasfile = 0
   for f in args.cod_files:
@@ -1239,9 +1312,9 @@ if __name__ == "__main__":
       stdinasfile += 1
 
   if stdinasfile > 1:
-    sys.stderr.write("Only one file can be STDIN (don't use hyphen more than once)\n")
+    sys.stderr.write("Only one file can be STDIN (don't use hyphen twice)\n")
     sys.exit(175)
-    
+
   if args.minify_css:
     args.no_comments = True
     args.no_header = True

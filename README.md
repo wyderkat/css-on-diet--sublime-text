@@ -1,8 +1,8 @@
 CSS-On-Diet - easy and fast CSS preprocessor
 ============================================
 
-This is [CSS-On-Diet](http://www.cofoh.com/css-on-diet) package for Sublime Text v2 and v3 for Mac, Linux and Windows. 
-[CSS-On-Diet](http://www.cofoh.com/css-on-diet) is a preprocessor. It works like [Emmet](http://emmet.io/), but on the CSS level.  
+This is [CSS-On-Diet](http://cssondiet.com) package for Sublime Text v2 and v3 for Mac, Linux and Windows. 
+[CSS-On-Diet](http://cssondiet.com) is a preprocessor. It works like [Emmet](http://emmet.io/), but on the CSS level.  
 
 ![screenshot](https://raw.github.com/wyderkat/css-on-diet--sublime-text/master/screenshot.gif)
 
@@ -60,7 +60,7 @@ Use mnemonics
       bac #1C6BA0
     }
 
-Common CSS keywords have mnemonics. Parameters are 3 letters long, values 2, and units just 1 letter ([The list](http://www.cofoh.com/css-on-diet-LATEST))
+Common CSS keywords have mnemonics. Parameters are 3 letters long, values 2, and units just 1 letter ([The list](http://cssondiet.com/specification))
 
 Medias Breakpoints
 ------------------
@@ -146,4 +146,4 @@ Mixins
 
 Mixins can be anything placed anywhere. Arguments give them programming power.
 
-More info at [CSS-On-Diet page](http://www.cofoh.com/css-on-diet)
+More info at [CSS-On-Diet page](http://cssondiet.com)
