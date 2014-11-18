@@ -21,6 +21,7 @@ import hashlib
 import math
 import re
 import sys
+import time
 from os import path
 
 #}}}
@@ -29,9 +30,69 @@ from os import path
 """ CSS-On-Diet is an easy and fast CSS preprocessor for CSS files. """
 
 
-VERSION = "1.7.0"
-PROToVERSION = "1.7"
+VERSION = "1.7.1"
+PROToVERSION = "1.8"
 
+#{{{ Prefixes List
+
+# !!! don't forget the period character when a single element in a tuple
+PREFIXES = {
+  # http://www.w3schools.com/cssref/css3_browsersupport.asp
+  "align-content": ("-webkit-",), 
+  "align-items": ("-webkit-",), 
+  "align-self": ("-webkit-",), 
+  "animation": ("-webkit-",), 
+  "animation-name": ("-webkit-",), 
+  "animation-duration": ("-webkit-",), 
+  "animation-timing-function": ("-webkit-",), 
+  "animation-delay": ("-webkit-",), 
+  "animation-iteration-count": ("-webkit-",), 
+  "animation-direction": ("-webkit-",), 
+  "animation-play-state": ("-webkit-",), 
+  "backface-visibility": ("-webkit-","-ms-"), 
+  "column-count": ("-webkit-", "-moz-",),
+  "column-fill": ("-webkit-", "-moz-",),
+  "column-gap": ("-webkit-", "-moz-",),
+  "column-rule": ("-webkit-", "-moz-",),
+  "column-rule-color": ("-webkit-", "-moz-",),
+  "column-rule-style": ("-webkit-", "-moz-",),
+  "column-rule-width": ("-webkit-", "-moz-",),
+  "column-span": ("-webkit-", "-moz-",),
+  "column-width": ("-webkit-", "-moz-",),
+  "columns": ("-webkit-", "-moz-",),
+  "flex": ("-webkit-",),
+  "flex-basis": ("-webkit-",),
+  "flex-direction": ("-webkit-",),
+  "flex-flow": ("-webkit-",),
+  "flex-grow": ("-webkit-",),
+  "flex-shrink": ("-webkit-",),
+  "flex-wrap": ("-webkit-",),
+  "font-feature-setting": ("-webkit-", "-moz-",),
+  "hyphens": ("-webkit-", "-moz-", "-ms-",),
+  "image-rendering": ("-moz-",),
+  "justify-content" : ("-webkit-",),
+  "marquee-direction": ("-webkit-",),
+  "marquee-play-count": ("-webkit-",),
+  "marquee-speed": ("-webkit-",),
+  "marquee-style": ("-webkit-",),
+  "order": ("-webkit-",),
+  "perspective": ("-webkit-",),
+  "perspective-origin": ("-webkit-",),
+  "tab-size": ("-moz-",),
+  "text-align-last": ("-moz-",),
+  "text-decoration-color": ("-moz-",),
+  "text-decoration-line": ("-moz-",),
+  "text-decoration-style": ("-moz-",),
+  "transform": ("-webkit-",),
+  "transform-origin": ("-webkit-",),
+  "transform-style": ("-webkit-",),
+}
+
+ATRULESPREFIXES = {
+  "keyframes": ("-webkit-",)
+}
+
+#}}}
 #{{{ Mnemonics List
 
 PROPERTyMNEMONICS = {
@@ -252,6 +313,36 @@ def replace_list( string, thelist ):
     lastend = end
   newstring += string[lastend:]
   return newstring
+
+def nested_regex( str, start, end ):
+  """
+  For a given "str" where "start" points to openchar like (,{, or whatever
+  and "end" points after the first found ),},... find the last closing character
+  in nested manner
+  Return new "end" after last nested character or -1 if nesting not closed
+  """
+  #print "* %d %d %s" % (start,end, str)
+  openchar = str[start]
+  start = start+1 # compatibility with the end
+  closechar = str[end-1]
+  while True:
+    inner = str.count( openchar, start, end)
+    # if at least one openchar before previous closegchar
+    if inner > 0:
+      start = end
+      # for every missing closechar
+      for i in range(inner):
+        end = str.find( closechar, end ) 
+        if end == -1:
+          break
+        else:
+          end +=1 # end has to be after the last
+      if end == -1:
+        break
+    else:
+      break # no more char to close
+  return end
+
 
 
 
@@ -540,9 +631,9 @@ def rm_comments( cut, a ):
 DEFINEsBLOCkRE = re.compile( r"""
   @cod-defines?
   \s*
-  {
-  (.*?) # everything up to close
-  $\s* } \s*$    # has to be in separate line
+  ({
+  .*?
+  })
                             """, re.X|re.S|re.M ) 
 
 DEFINeNAMeCHAR = r"[-\w]"
@@ -571,7 +662,7 @@ class a_defines(object):
     pat2 = re.escape( name ) 
     #pat3 = r"(?!%s)" % DEFINeNAMeCHAR
     pat3 = r"\b"
-    pat4 = r"(?:\s*\((.*?)\))?"  # optional parentheses
+    pat4 = r"(?:\s*(\(.*?\)))?"  # optional parentheses
 
     patin = re.compile( pat2 + pat4 ) 
     patout = re.compile( pat1 + pat2 + pat3 + pat4, re.S ) 
@@ -592,11 +683,16 @@ class a_defines(object):
 
 def read_defines( cut ):
   defines = a_defines()
-  blocks = DEFINEsBLOCkRE.finditer( str(cut) )
+  cos = str(cut)
+  blocks = DEFINEsBLOCkRE.finditer( cos )
   to_replace = []
   for b in blocks:
-    definesblock = b.group(1)
-    to_replace.append( ( b.start(), b.end(), "" ) )
+    nestedend = nested_regex( cos, b.start(1), b.end(1) )
+    if nestedend == -1:
+      continue
+    definesblock = cos[ b.start(1)+1 : nestedend-1 ]
+
+    to_replace.append( ( b.start(), nestedend, "" ) )
 
     definesmatch = DEFINEsRE.finditer( definesblock )
     for d in definesmatch:
@@ -625,34 +721,17 @@ def expand_defines( defines, cutorstr ):
       newbody = defbody
       # find arguments
       arguments = []
-      moreparenthesis = True
-      start = d.start(1)
-      savedstart = start
       #TODO check if the previous end doesn't overlap current one
-      end = d.end(1)
-      finalend = d.end()
       # if arguments
+      end = d.end()
       if d.group(1): 
-        # inner partheses support
-        while moreparenthesis:
-          inner = cos.count("(", start, end)
-          # if at least one "(" before previous closing ")"
-          if inner > 0:
-            start = end
-            # for every missing ")"
-            for i in range(inner):
-              end = cos.find( ")", end+1 ) # +1 - the end of regex == closing ")"
-              if end == -1:
-                break
-            if end == -1:
-              continue
-          else:
-            moreparenthesis = False
+        start = d.start(1)
+        end = d.end(1)
+        end = nested_regex( cos, start, end )
         if end == -1:
           continue
-        finalend = end+1
 
-        argumentslist = cos[savedstart:end].split(",")
+        argumentslist = cos[start+1:end-1].split(",")
         for a in argumentslist:
           arguments.append(a.strip())
 
@@ -670,9 +749,7 @@ def expand_defines( defines, cutorstr ):
           newbody += " " + " ".join( arguments[highest:] )
 
       # d.start() - begining of whole define
-      # finalend - usually equals to d.end(), but in case of
-      #         inner paretheses is further
-      tocutit.append((d.start(), finalend, newbody))
+      tocutit.append((d.start(), end, newbody))
 
     if tocutit:
       if inside:
@@ -1006,6 +1083,68 @@ def apply_mnemonics( cut ):
   cut.replace_preserving( toreplace )
 
 #}}}
+#{{{ Apply Prefixes
+
+def apply_prefixes( cut ):
+  cos = str(cut)
+  toreplace = [] # has to be ordered
+
+  rules = RULeRE.finditer( cos )
+  for r in rules:
+
+    declarations = DECLARATIOnRE.finditer( cos, r.start(2), r.end(2) )
+    for d in declarations:
+
+      toprefix = []
+
+      if d.group("param") in PREFIXES:
+        toprefix.append( d.group("param") )
+
+      values = VALUeRE.finditer( cos, d.start("value"), d.end("value") )
+      for v in values:
+        if v.group(1) in PREFIXES:
+          toprefix.append( v.group(1) )
+
+      if toprefix:
+        p = prefix_it( toprefix, PREFIXES, d.group() )
+        toreplace.append( ( d.start(), d.start(), p ) )
+
+  cut.replace_preserving( toreplace )
+
+def apply_atrules_prefixes( cut ):
+  cos = str(cut)
+  toreplace = [] 
+
+  for at in ATRULESPREFIXES: # "keyframes"
+    atre = re.compile( r"@%s[^{}]*({.*?})" % at, re.S )
+    atrules = atre.finditer( cos )
+    for r in atrules:
+      nestedend = nested_regex( cos, r.start(1), r.end(1) )
+      if nestedend == -1:
+        continue
+      fullrule = cos[ r.start() : nestedend ]
+
+      p = prefix_it( [at], ATRULESPREFIXES, fullrule )
+      toreplace.append( ( r.start(), r.start(), p ) )
+
+  cut.replace_preserving( toreplace )
+
+def prefix_it( toprefix, table, text ):
+  byprefix = {}
+  order = [] # because no OrderedDict for 2.6
+  for tp in toprefix:
+    for p in table[ tp ]:
+      if p in byprefix:
+        byprefix[ p ] = byprefix[p].replace( tp, p+tp, 1 )
+      else:
+        byprefix[ p ] = text.replace( tp, p+tp, 1 )
+        order.append( p )
+  result = ""
+  for p in order:
+    result += byprefix[ p ]
+  return result
+
+#}}}
 #{{{ Header
 
 HEADErRE = re.compile( r"^//!(.*?)\n", re.S )
@@ -1199,6 +1338,7 @@ def put_css_on_diet( a, error_handler ):
   global log_err
   log_err = error_handler
 
+  _profiler_start( a )
   contentcut = a_cut( "" ) # empty because it is meta cod file for cmd line args
   tomerge = []
   included_sha1 = []
@@ -1211,23 +1351,35 @@ def put_css_on_diet( a, error_handler ):
     tomerge.append( ( 0, 0, incontentcut ) ) # 0 means at the end because contentcut is empty
   contentcut.replace_preserving( tomerge, merge = True )
   nlcharacter = choose_nlcharacter( nlcharacterlist )
+  _profiler_point(a, "Includes")
 
   definesdict = read_defines( contentcut )
   expand_defines( definesdict, contentcut )
+  _profiler_point(a, "Defines")
   reduce_arithmetic( contentcut )
+  _profiler_point(a, "Arithmetics")
+  expand_rgba( contentcut )
+  _profiler_point(a, "RGBA")
   medias = read_media( contentcut )
   move_media( medias, contentcut )
+  _profiler_point(a, "Medias")
   apply_mnemonics( contentcut )
-  expand_rgba( contentcut )
+  _profiler_point(a, "Mnemonics")
+  if not a.no_prefix:
+    apply_prefixes( contentcut )
+    apply_atrules_prefixes( contentcut )
+    _profiler_point(a, "Prefixer")
 
   contentcut.recover_from_save() 
   if not a.no_header:
     add_header( contentcut )
+  _profiler_point(a, "Comments recover")
 
   content = str(contentcut)
 
   if a.minify_css:
     content = minify_spaces( content )
+    _profiler_point(a, "Minifier")
 
   if nlcharacter is not None:
     content = content.replace("\n", nlcharacter)
@@ -1237,6 +1389,28 @@ def put_css_on_diet( a, error_handler ):
   handleout.write( content )
   if handleout is not sys.stdout:
     handleout.close()
+  _profiler_point(a, "Writer")
+  _profiler_end(a)
+
+def _profiler_start( a ):
+  if a.profile:
+    _profiler_start.time = time.time()
+    _profiler_start.initialtime = _profiler_start.time
+    _profiler_start.file = open( a.profile, "w" )
+
+def _profiler_point( a, label ):
+  if a.profile:
+    now = time.time()
+    delta = now - _profiler_start.time
+    _profiler_start.file.write("%20s %f\n" % (label, delta) )
+    _profiler_start.time = now
+
+def _profiler_end( a ):
+  if a.profile:
+    delta = time.time() - _profiler_start.initialtime
+    _profiler_start.file.write("%s\n%20s %f\n" % 
+       ("="*20 + "|" + "="*8, "Execution time", delta) )
+    _profiler_start.file.close()
 
 #}}}
 #{{{ __main__
@@ -1255,7 +1429,7 @@ if __name__ == "__main__":
 
   parser = argparse.ArgumentParser(
     description= "CSS-On-Diet - preprocessor for CSS files - ver. %s" % VERSION,
-    epilog="cssondiet.com"
+    epilog="http://cssondiet.com"
   )
 
   parser.add_argument(
@@ -1272,6 +1446,10 @@ if __name__ == "__main__":
     help="don't add header line"
   )
   parser.add_argument(
+    '-p', '--no-prefix', action="store_true",
+    help="don't add prefixes"
+  )
+  parser.add_argument(
     '-m', '--minify-css', action="store_true",
     help="Minify CSS result code. Implies --no-comments and --no-header"
   )
@@ -1281,6 +1459,10 @@ if __name__ == "__main__":
     help="List of additional directories to look for included files. " +\
          "Multiple dirs can be separated by commas or by multiple " +\
          "-I(--include-dirs) arguments."
+  )
+  parser.add_argument(
+    '--profile',  metavar='file',
+    help="Profile the preprocessing execution and save it to file"
   )
   parser.add_argument(
     '-v', '--version',  action="store_true",
