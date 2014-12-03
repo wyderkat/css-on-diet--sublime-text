@@ -30,7 +30,7 @@ from os import path
 """ CSS-On-Diet is an easy and fast CSS preprocessor for CSS files. """
 
 
-VERSION = "1.7.1"
+VERSION = "1.7.2"
 PROToVERSION = "1.8"
 
 #{{{ Prefixes List
@@ -220,6 +220,12 @@ PROPERTyMNEMONICS = {
   "tid":"transition-duration",
   "tip":"transition-property",
   "tit":"transition-timing-function",
+  # another variant
+  "ts-":"transition",
+  "tsy":"transition-delay",
+  "tsd":"transition-duration",
+  "tsp":"transition-property",
+  "tst":"transition-timing-function",
 }
 
 VALUeMNEMONICS = {
