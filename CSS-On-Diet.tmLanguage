@@ -830,10 +830,9 @@
       <key>name</key>
       <string>support.type.property-vendor.css</string>
     </dict>
-    <dict desc="cod values">
+    <dict desc="COD values">
       <key>match</key>
-      <string>%%|\b(!i|ab|al|au|ba|bb|bh|bl|bo|bt|ca|cb|ce|da|db|de|do|ea|ei|eo|fi|hi|ib|
-        |if|ih|ii|il|io|is|it|le|li|lo|mi|nm|no|nr|nw|pb|po|re|ri|rx|ry|so|st|ta|to|tr|un|up|vi|wh)\b</string>
+      <string>%%|\b(!i|%%|ab|al|au|ba|bb|bh|bl|bo|bt|ca|cb|ce|co|da|db|de|do|ea|ei|eo|fi|fl|fs|fe|hi|ib|if|ih|ii|il|io|is|it|le|lg|li|lo|mi|nm|no|nr|nw|pb|po|re|rg|ri|ro|rx|ry|sa|sb|sc|so|st|ta|to|tr|un|up|vi|wh|wr)\b</string>
       <key>name</key>
       <string>support.constant.property-value.cod</string>
     </dict>
@@ -1209,11 +1208,7 @@
         </dict>
         <dict desc="COD properties LIST">
           <key>match</key>
-          <string>\b(col|wid|hei|bac|bai|bap|bas|bar|bal|baa|bao|dis|con|fos|fow|fof|fot|fov|pos|pal|pat|pab|par|mal|mat|mab|mar|
-            |flo|top|lih|bbc|bbl|bbr|bbs|bbw|bcp|bco|bio|bir|bil|bis|biw|blc|bls|blw|bra|brc|brs|brw|bsp|bst|btc|btl|btr|
-            |bts|btw|bwi|lef|tea|ted|tet|tes|tei|teo|ter|zin|vea|ovx|ovy|opa|cle|les|cur|rig|ouc|ous|ouo|ouw|bot|lit|lii|
-            |lio|bos|boz|zoo|maw|miw|mih|mah|fil|whs|vis|wos|wob|wow|ann|and|ant|any|ani|anr|anf|anp|tfo|tfs|tiy|tid|tip|tit|
-            |ba-|fo-|pa-|ma-|ov-|ou-|li-|an-|tf-|ti-|b--|bb-|bi-|bl-|br-|bt-)(?![-a-z])</string>
+          <string>\b(col|wid|hei|bac|bai|bap|ba-|bas|bar|bal|bao|dis|con|fos|fow|fof|fot|fo-|fov|pos|pa-|pal|pat|pab|par|ma-|mal|mat|mab|mar|flo|top|lih|fl-|flf|fld|flw|flg|fls|flb|ord|als|ali|alc|juc|b--|bb-|bbc|bbl|bbr|bbs|bbw|bcp|bco|bi-|bio|bir|bil|bis|biw|bl-|blc|bls|blw|bra|br-|brc|brs|brw|bsp|bst|bt-|btc|btl|btr|bts|btw|bwi|lef|tea|ted|tet|tes|tei|teo|ter|zin|vea|ov-|ovx|ovy|opa|cle|les|cur|rig|ouc|ou-|ous|ouo|ouw|bot|li-|lit|lii|lio|bos|boz|zoo|maw|miw|mih|mah|fil|whs|vis|wos|wob|wow|an-|ann|and|ant|any|ani|anr|anf|anp|tf-|tfo|tfs|ti-|tiy|tid|tip|tit|ts-|tsy|tsd|tsp|tst)(?![-a-z])</string>
           <key>name</key>
           <string>support.type.property-name.css</string>
         </dict>
